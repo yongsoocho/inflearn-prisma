@@ -1,6 +1,8 @@
 const express = require("express");
 const app = express();
 const { PrismaClient } = require("@prisma/client");
+const { userResponse } = require("./select");
+const { faker } = require("@faker-js/faker");
 
 const prisma = new PrismaClient();
 
@@ -8,8 +10,34 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get("/", async (req, res) => {
   try {
-    const users = await prisma.user.findMany();
-    return res.status(200).json({ users });
+    const page = req.query.page;
+    const [users, userCount] = await Promise.all([
+      prisma.user.findMany({
+        take: 12,
+        skip: 12 * (page - 1),
+        orderBy: {
+          user_id: "desc",
+        },
+        select: userResponse,
+      }),
+      prisma.user.count(),
+    ]);
+    return res.status(200).json({ users, maxPage: Math.ceil(userCount / 12) });
+    // return res.status(200).json({ page: req.query.page });
+  } catch (error) {
+    return res.status(500).json({ error: "internal server error!" });
+  }
+});
+
+app.get("/:id", async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: {
+        user_id: Number(req.params.id),
+      },
+      select: userResponse,
+    });
+    return res.status(200).json({ user });
   } catch (error) {
     return res.status(500).json({ error: "internal server error!" });
   }
@@ -33,6 +61,27 @@ app.post("/", async (req, res) => {
   }
 });
 
+app.patch("/:id", async (req, res) => {
+  try {
+    const user = await prisma.user.upsert({
+      where: {
+        user_id: Number(req.params.id),
+      },
+      update: {
+        ...req.body,
+      },
+      create: {
+        ...req.body,
+      },
+      select: userResponse,
+    });
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ error: "internal server error!" });
+  }
+});
+
 app.delete("/", async (req, res) => {
   try {
     const deletedUser = await prisma.user.delete({
@@ -49,3 +98,5 @@ app.delete("/", async (req, res) => {
 app.listen(3000, () => {
   console.log("server on 3000");
 });
+
+module.exports = { prisma };

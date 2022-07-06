@@ -16,7 +16,8 @@ model User {
   email    String   @db.VarChar(30)
   password String?  @db.Text
   provider PROVIDER @default(LOCAL)
-  agree    Boolean  @db.Boolean
+  name     String   @db.VarChar(15)
+  agree    Boolean? @db.Boolean
 
   posts Post[]
 }
